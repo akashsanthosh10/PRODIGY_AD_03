@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 void main() {
@@ -11,9 +10,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
+    return MaterialApp(
       home: StopWatch(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -26,74 +25,77 @@ class StopWatch extends StatefulWidget {
 }
 
 class _StopWatchState extends State<StopWatch> {
-  int seconds = 0, minutes = 0, hours = 0;
-  String digitSeconds = '00', digitMinutes = '00', digitHours = '00';
-  Timer? timer;
-  bool started = false;
-  List laps = [];
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _timer;
+  bool _started = false;
+  List<String> _laps = [];
 
-  void stop() {
-    timer!.cancel();
+  void _start() {
     setState(() {
-      started = false;
+      _started = true;
+    });
+    _stopwatch.start();
+    _timer = Timer.periodic(const Duration(milliseconds: 50), (Timer timer) {
+      if (_stopwatch.isRunning) {
+        setState(() {}); // Update the UI
+      }
     });
   }
 
-  void reset() {
-    timer!.cancel();
+  void _stop() {
+    _stopwatch.stop();
+    _timer?.cancel();
     setState(() {
-      seconds = 0;
-      minutes = 0;
-      hours = 0;
-      digitSeconds = '00';
-      digitMinutes = '00';
-      digitHours = '00';
-      laps.clear();
-      started = false;
+      _started = false;
     });
   }
 
-  void addlaps() {
-    String lap = "$digitHours:$digitMinutes:$digitSeconds";
+  void _reset() {
+    _stopwatch.reset();
+    _timer?.cancel();
     setState(() {
-      laps.add(lap);
+      _started = false;
+      _laps.clear();
     });
   }
 
-  void start() {
-    setState(() {
-      started = true;
-    });
-    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+  void _addLap() {
+    if (_stopwatch.isRunning) {
+      final lapTime = _stopwatch.elapsed;
+      final lapStr = _formatDuration(lapTime);
       setState(() {
-        seconds++;
-        if (seconds > 59) {
-          seconds = 0;
-          minutes++;
-          if (minutes > 59) {
-            minutes = 0;
-            hours++;
-          }
-        }
-        digitSeconds = (seconds >= 10) ? "$seconds" : "0$seconds";
-        digitMinutes = (minutes >= 10) ? "$minutes" : "0$minutes";
-        digitHours = (hours >= 10) ? "$hours" : "0$hours";
+        _laps.add(lapStr);
       });
-    });
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    final milliseconds = duration.inMilliseconds % 1000;
+
+    final digitMinutes = minutes.toString().padLeft(2, '0');
+    final digitSeconds = seconds.toString().padLeft(2, '0');
+    final digitMilliseconds = (milliseconds ~/ 10).toString().padLeft(2, '0');
+
+    return '$digitMinutes:$digitSeconds:$digitMilliseconds';
   }
 
   @override
   Widget build(BuildContext context) {
+    final elapsedTime = _stopwatch.elapsed;
+    final displayTime = _formatDuration(elapsedTime);
+
     return Scaffold(
       backgroundColor: Colors.black12,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Center(
+              Center(
                 child: Text(
                   'Stopwatch',
                   style: TextStyle(
@@ -102,13 +104,11 @@ class _StopWatchState extends State<StopWatch> {
                       fontWeight: FontWeight.bold),
                 ),
               ),
-              const SizedBox(
-                height: 10,
-              ),
+              SizedBox(height: 10),
               Center(
                 child: Text(
-                  '$digitHours:$digitMinutes:$digitSeconds',
-                  style: const TextStyle(
+                  displayTime,
+                  style: TextStyle(
                       color: Colors.white,
                       fontSize: 82,
                       fontWeight: FontWeight.w600),
@@ -120,73 +120,71 @@ class _StopWatchState extends State<StopWatch> {
                     color: Colors.white10,
                     borderRadius: BorderRadius.circular(9)),
                 child: ListView.builder(
-                    itemCount: laps.length,
+                    itemCount: _laps.length,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.all(18),
+                        padding: EdgeInsets.all(18),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Lap${index + 1}',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 16),
+                              'Lap ${index + 1}',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
                             ),
                             Text(
-                              '${laps[index]}',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 16),
+                              '${_laps[index]}',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
                             )
                           ],
                         ),
                       );
                     }),
               ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 50),
-                child: Row(
-                  children: [
-                    Expanded(
-                        child: RawMaterialButton(
-                      onPressed: () {
-                        (!started) ? start() : stop();
-                      },
-                      constraints: const BoxConstraints(minHeight: 50),
-                      shape: const StadiumBorder(
-                          side: BorderSide(color: Colors.white30)),
-                      child: Text(
-                        !started ? 'Start' : 'Stop',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 20),
-                      ),
-                    )),
-                    const SizedBox(width: 10),
-                    IconButton(
-                      onPressed: () {
-                        addlaps();
-                      },
-                      color: Colors.white,
-                      icon: const Icon(Icons.flag, size: 50),
+              SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                      child: RawMaterialButton(
+                    onPressed: () {
+                      !_started ? _start() : _stop();
+                    },
+                    fillColor: Colors.white12,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    constraints: BoxConstraints(minHeight: 60),
+                    shape:
+                        StadiumBorder(side: BorderSide(color: Colors.white30)),
+                    child: Text(
+                      !_started ? 'Start' : 'Stop',
+                      style: TextStyle(color: Colors.white, fontSize: 20),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: RawMaterialButton(
-                      onPressed: () {
-                        reset();
-                      },
-                      constraints: const BoxConstraints(minHeight: 50),
-                      shape: const StadiumBorder(
-                          side: BorderSide(
-                        color: Colors.white30,
-                      )),
-                      child: const Text(
-                        'Reset',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
-                      ),
-                    ))
-                  ],
-                ),
+                  )),
+                  SizedBox(width: 10),
+                  IconButton(
+                    onPressed: () {
+                      _addLap();
+                    },
+                    color: Colors.white,
+                    icon: Icon(Icons.flag, size: 30),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                      child: RawMaterialButton(
+                    onPressed: () {
+                      _reset();
+                    },
+                    fillColor: Colors.white12,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    constraints: BoxConstraints(minHeight: 60),
+                    shape:
+                        StadiumBorder(side: BorderSide(color: Colors.white30)),
+                    child: Text(
+                      'Reset',
+                      style: TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                  ))
+                ],
               )
             ],
           ),
